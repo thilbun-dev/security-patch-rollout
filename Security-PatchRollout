@@ -1,0 +1,39 @@
+# Security patch version rollout
+# NOTE requires necessary permissions for WMI queries, firewalls should also allow WMI queries 
+
+# Import parameters from the command line when calling the script
+param (
+	[string]$programName,
+	[string]$programVersion
+)
+
+# Path to the txt file containing the computers 
+$computerListFile = "C:\path\to\computers.txt"
+
+# Check if the file exists in the specified path
+if (-Not (Test-Path -Path $computerListFile)) {
+		Write-Error "File $computerListFile not found."
+		exit
+}
+
+# Read the list of computers into an array
+$computers = Get-Content -Path $computerListFile
+
+# Function to check each computer for the program and version number using WMIObject
+foreach ($computer in $computers) {
+	try {
+		# Query the installed programs on the remote computer
+		$installedPrograms = Get-WmiObject -Class Win32_Product -ComputerName $computer -ErrorAction Stop
+		
+		# Check if the program with the specified version is installed
+		$program = $installedPrograms | Where-Object { $_.Name -like "*$programName*" -and $_.Version -eq $programVersion }
+		
+		if ($program) {
+			Write-Output "Program '$programName' version '$programVersion' is installed on $computer."
+		} else {
+			Write-Output "Program '$programName' version '$programVersion' is NOT installed on $computer."
+		}
+	} catch {
+		Write-Output "Failed to query $computer. Error: $_"
+	}
+}
